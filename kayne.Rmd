@@ -26,37 +26,46 @@ achieve this, three different techniques have been selected:
 1.  Sentiment Analysis: The objective is to explore the emotions and
     sentiments expressed in his songs throughout his career.
 
-2.  Term Frequency - TF-IDF: The objective is to detect rare words in albums compared to others and see how representative offensive words are.
+2.  Term Frequency - TF-IDF: The objective is to detect rare words in
+    albums compared to others and see how representative offensive words
+    are.
 
 3.  
 
-
 ```{r setup, include = FALSE}
-knitr::opts_chunk$set(
-  warning = FALSE,
-  message = FALSE,  
-  echo = TRUE
-  )
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = TRUE)
+```
+
+```{r}
+set.seed(123)
+rm(list = ls())
 ```
 
 # Packages
+
 ```{r libraries}
+library(dplyr)
 library(readr)
+library(ggplot2)
 library(tidyverse)
 library(geniusr)
 library(tidytext)
+library(quanteda)
 library(devtools)
 library(forcats)
 library(wordcloud)
 library(RColorBrewer)
-```
-
-For reproducibility:
-```{r}
-set.seed(123)
+library(ggraph)
+library(igraph)
+library(widyr)
 ```
 
 # Download the data
+
+```{r}
+# Read the data from GitHub
+kanye_west <- read.csv("https://github.com/babyakja/GA_capstone_project/raw/master/data/Kanye%25West.csv")
+```
 
 The selected dataframe comes from a GitHub repository containing a total
 of 98 Kanye West songs, covering his discography from 2004 to 2018.
@@ -65,9 +74,6 @@ release years, so this information will need to be added manually to
 complete the analysis.
 
 ```{r}
-# Read the data from GitHub
-Kanye_West <- read.csv("https://github.com/babyakja/GA_capstone_project/raw/master/data/Kanye%25West.csv")
-
 # Create a vector including the songs for each album
 album_data <- list(
   "The College Dropout (2004)" = c("We Don't Care", "Graduation Day", "All Falls Down", "Spaceship", "Jesus Walks", "Never Let Me Down", 
@@ -96,27 +102,11 @@ album_data <- list(
   
   "Kids See Ghosts (2018)" = c("Kids See Ghosts", "Freeee (Ghost Town, Pt. 2)", "Fire", "4th Dimension", "Reborn", "Feel the Love", "Cudi Montage"),
   
-  "Ye (2018)" = c("I Thought About Killing You", "Yikes", "All Mine", "Wouldn't Leave", "No Mistakes", "Ghost Town", "Violent Crimes"),
-  
-  "Singles" = c("Lift Yourself")
+  "Ye (2018)" = c("I Thought About Killing You", "Yikes", "All Mine", "Wouldn't Leave", "No Mistakes", "Ghost Town", "Violent Crimes")
 )
 
-# Create the list with album and year of realease 
-release_dates <- list(
-  "The College Dropout (2004)" = "2004",
-  "Late Registration (2005)" = "2005",
-  "Graduation (2007)" = "2007",
-  "808s & Heartbreak (2008)" = "2008",
-  "My Beautiful Dark Twisted Fantasy (2010)" = "2010",
-  "Yeezus (2013)" = "2013",
-  "The Life of Pablo (2016)" = "2016",
-  "Kids See Ghosts (2018)" = "2018",
-  "Ye (2018)" = "2018",
-  "Singles" = "2018"
-)
-
-# Create new columns and introduce the new info
-Kanye_West$album <- sapply(Kanye_West$name, function(x) {
+# We create a new column and introduce the new info
+kanye_west$album <- sapply(kanye_west$name, function(x) {
   album_found <- NA
   for (album in names(album_data)) {
     if (x %in% album_data[[album]]) {
@@ -127,34 +117,45 @@ Kanye_West$album <- sapply(Kanye_West$name, function(x) {
   return(album_found)
 })
 
-Kanye_West$release_date <- sapply(Kanye_West$album, function(x) release_dates[[x]])
+# We use the information between parentheses to extract the release year
+kanye_west <- kanye_west %>%
+  mutate(
+    release_year = str_extract(album, "\\((\\d{4})\\)") %>% str_remove_all("[()]") %>% as.integer()
+  )
 
-#Finally, we convert the df into a tibble and verify the first columns
-Kanye_West <- as_tibble(Kanye_West)
-head(Kanye_West)
+# Finally, we convert the df into a tibble and verify the first columns
+kanye_west <- as_tibble(kanye_west)
+head(kanye_west)
 
-
-
+# We check for NAs
+kanye_west %>% 
+  filter(is.na(album) | is.na(release_year))
 ```
 
 With this addition, we now have the necessary information to carry out
 the analysis. As observed, there are a total of 9 albums and one song
-that does not belong to any, meaning it is a single.
-
-The next step is to filter the information, as the dataset contains some
-peculiarities that could affect the analysis.
-
-In the text variable, there is extra information that does not
-correspond to the lyrics but instead includes details about the
-production or specific parts of the song (e.g., Intro, Hook, etc.). If
-this information were available for all songs, analyzing the producers
-could provide valuable insights to enrich the study. However, since it
-is not consistently present across all tracks, it is best to remove it
-to avoid potential issues.
+that does not belong to any, meaning it is a single. We don't know why
+it was included in the dataset, because it is not the only single
+released by the artist in this time period. Since we're interesed in
+working at the album level, we will drop this observation now:
 
 ```{r}
-# Remove the brackets and the information inside.
-Kanye_West$text <- gsub("\\[.*?\\]", "", Kanye_West$text)
+kanye_west <- kanye_west %>%
+  filter(!is.na(album))
+```
+
+The next step is to clean the data set: In the text variable, there is
+extra information that does not correspond to the lyrics but instead
+includes details about the production or who sings in specific parts of
+the song (e.g., Intro, Verse 1, etc.). If this information were
+available for all songs, analyzing the producers or collaborators could
+provide valuable insights to enrich the study. However, since it is not
+consistently present across all tracks, it is best to remove it to avoid
+potential issues.
+
+```{r}
+# Remove the brackets and the information inside
+kanye_west$text <- gsub("\\[.*?\\]", "", kanye_west$text)
 ```
 
 # Tokenization and stopwords:
@@ -170,17 +171,28 @@ uppercase and lowercase from being treated as different.
 
 ```{r}
 # Tokenization with punctuation removal 
-Kanye_West <- Kanye_West %>%
+kanye_tokens <- kanye_west %>%
   unnest_tokens(word, text, drop = TRUE, strip_punct = TRUE, to_lower = TRUE) # drop = TRUE to remove the text column  
 
-head(Kanye_West)
+head(kanye_tokens)
+```
+
+```{r}
+kanye_tokens %>%
+  group_by(album, release_year) %>%
+  summarise(
+    number_of_songs = n_distinct(name),
+    number_of_words = n(),
+    .groups = "drop"
+  ) %>%
+  arrange(release_year)
 ```
 
 Now, we filter the stopwords (from `tidytext package`) in order to
 eliminate those uninformative words:
 
 ```{r}
-Kanye_West <- Kanye_West %>%
+kanye_filtered <- kanye_tokens %>%
   anti_join(stop_words)
 ```
 
@@ -195,24 +207,45 @@ characteristics of the words present in Kanye West's lyrics.
 
 ```{r}
 # Count the frequency of words
-word_counts <- Kanye_West %>%
+word_counts <- kanye_filtered %>%
   count(word, sort = TRUE)
 
 # top 10 most frequent words
 head(word_counts, 10)
 ```
 
-Words like "la," "yeah," and "shit" dominate the list, while others like
-"love," "niggas," and "nigga" stand out due to their relevance in the
-context of the artist's songs. Additionally, terms like "baby," "girl,"
-and "life" suggest that Kanye also addresses personal relationships in
-his lyrics.
+From this table we can already get an idea of the preeminence of swear
+words, slurs and slang in Kanye's discography, but we will have to
+conduct a deeper analysis to get a more accurate picture.
 
-The most common word, 'la', in this case refers to 'ya', which is a
-slang term meaning 'you'. It is also important to note that Kanye West
-frequently uses slang and colloquial expressions in his lyrics.
+The top word, "la", doesn't seem to be very informative, but let's see
+it in context to have a better idea:
 
 ```{r}
+corpus <- corpus(kanye_west$text)
+
+kwic(tokens(corpus), "la", window = 5)
+```
+
+The word 'la', appears to carry three different meanings in Kanye's
+songs: an article in a foreign language, LA (Los Angeles) and, most
+commonly, a vocable - a wordless sound or syllable with no semantic
+meaning used in music.
+
+Let's make a plot and a wordcloud to see this more visually:
+
+```{r}
+album_order <- c(
+  "The College Dropout (2004)", 
+  "Late Registration (2005)", 
+  "Graduation (2007)", 
+  "808s & Heartbreak (2008)", 
+  "My Beautiful Dark Twisted Fantasy (2010)", 
+  "Yeezus (2013)", 
+  "The Life of Pablo (2016)", 
+  "Kids See Ghosts (2018)", 
+  "Ye (2018)"
+)
 # Visualization of words frequency
 word_counts %>%
   filter(n > 50) %>%
@@ -225,14 +258,8 @@ word_counts %>%
        x = NULL,
        y = "Frequency") +
   theme_minimal()
-```
 
-In this barplot, we can see the most commonly used words in more detail,
-highlighting other words and expressions such as "y'all", "god", or
-"fuck", among others.
-
-```{r}
-# Generar la nube de palabras
+# Generate the wordcloud
 wordcloud(words = word_counts$word, 
           freq = word_counts$n, 
           min.freq = 5, 
@@ -242,52 +269,152 @@ wordcloud(words = word_counts$word,
           random.order = FALSE)
 ```
 
-En este wordcloud se puede ver también el uso de estas palabras, otras
-que destacan son "girl" o "baby". Además, cabe mencionar también que
-muchas de las palabras son referenciales, es decir que se dirigen a un
-sujeto. Esto puede verse con el uso de expresiones como "y'all" (you
-all) o "i'm".
+Both of these expand on the idea from the previous table: we have some
+seemingly meaningless syllables, similar to "la", such as "yeah", "hey",
+"uh" or "bam", as well as some more examples of swearwords and slang:
+"fuck", "ass", "damn", "yo"...
+
+We verify the presence of words referring to women, which we could also
+anticipate: "girl", "baby", "mama", "hoes", "bitch"...
+
+Some of the words in the graphs, like "time", "God", "money" or "kids",
+might reveal other topics present in Kanye's discography; but, in
+general, we can say that the most common words are pretty ambiguous, and
+can take on very different meanings depending on the context, for which
+we will have to take our analysis some steps further.
 
 The following chart shows the 10 most common words per album:
 
 ```{r}
-# Album order for the plot
-album_order <- c(
-  "The College Dropout (2004)", 
-  "Late Registration (2005)", 
-  "Graduation (2007)", 
-  "808s & Heartbreak (2008)", 
-  "My Beautiful Dark Twisted Fantasy (2010)", 
-  "Yeezus (2013)", 
-  "The Life of Pablo (2016)", 
-  "Kids See Ghosts (2018)", 
-  "Ye (2018)", 
-  "Singles", "NA"
-)
+#Visualization:
 
-#Visualization: 
-Kanye_West %>%
-  count(album, word, sort = TRUE) %>%
+kanye_filtered %>%
+  count(album, release_year, word, sort = TRUE) %>%
   group_by(album) %>%
   top_n(10, n) %>%
   ungroup() %>%
-  mutate(album = factor(album, levels = album_order),  
+  mutate(album = factor(album, levels = album_order),  # Orders albums chronologically
          word = reorder_within(word, n, album)) %>%
   ggplot(aes(n, word, fill = album)) +
   geom_col(show.legend = FALSE) +
   facet_wrap(~ album, scales = "free_y", ncol = 5) +
   scale_y_reordered() +
   labs(title = "Most frequent words per album",
-       x = "Frequency",
+       x = "Count",
        y = NULL) +
   theme_minimal() +
-  theme(strip.text = element_text(size = 8)) 
+  theme(strip.text = element_text(size = 8))
 
 
 ```
 
-As can be seen in the graph, there are words that appear across several
-albums by Kanye West, such as "girl," "love," or "fuck."
+These plots represent the words that appear most often in each album,
+regardless of album length, so albums with more or longer songs may
+dominate with higher raw counts.
+
+As can be seen in the graphs, there are words that appear across several
+albums by Kanye West, such as "feel", "girl", "love", or "shit". Most
+albums don't have very prominent words, with most words on the top of
+the ranking having very similar counts.
+
+Next, it's useful to replicate this plot using *term frequency* instead
+of word counts. This implies normalizing the count of each word by the
+total number of words in that album, which is more insightful when
+comparing across albums of different lengths.
+
+```{r}
+kanye_filtered %>%
+  count(album, release_year, word) %>%
+  group_by(album) %>%
+  mutate(total_words = sum(n),
+         tf = n / total_words) %>%
+  top_n(10, tf) %>%
+  ungroup() %>%
+  mutate(album = factor(album, levels = album_order),
+         word = reorder_within(word, tf, album)) %>%
+  ggplot(aes(tf, word, fill = album)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ album, scales = "free_y", ncol = 5) +
+  scale_y_reordered() +
+  labs(title = "Top 10 most characteristic words per album (Term Frequency)",
+       x = "Term Frequency",
+       y = NULL) +
+  theme_minimal() +
+  theme(strip.text = element_text(size = 8))
+```
+
+For College Dropout and My Dark Twisted Fantasy specially, we can see
+that the frequency of the top words considering album length is very
+low, which implies that the vocabulary of those albums is probably more
+varied and balanced.
+
+On the other hand, the higher TF can be found on Kids See Ghosts, which
+is likely due to the fact that we only have two songs for this album.
+
+Lastly, we can plot the words with the highest TF-IDF, which will allow
+us to see what the most distinctive words for each album inside the
+collection are.
+
+```{r}
+kanye_filtered %>%
+  count(album, release_year, word, sort = TRUE) %>%
+  bind_tf_idf(term = word, document = album, n = n) %>%
+  group_by(album) %>%
+  slice_max(tf_idf, n = 10) %>%
+  ungroup() %>%
+  mutate(
+    album = factor(album, levels = album_order),
+    word = reorder_within(word, tf_idf, album)
+  ) %>%
+  ggplot(aes(tf_idf, word, fill = album)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ album, scales = "free", ncol = 5) +
+  scale_y_reordered() +
+  labs(
+    title = "Top 10 most distinctive words per album (TF-IDF)",
+    x = "TF-IDF score",
+    y = NULL
+  ) +
+  theme_minimal() +
+  theme(strip.text = element_text(size = 8))
+```
+
+------- no sé si todos estos gráficos tendríamos que haberlos hecho con lemmas
+en vez de con las palabras tal cual......
+aquí dejo el código del gráfico de TF-IDF con lemmas, aunque el objeto de 
+tfidf_all lo creamos más tarde
+
+```{r}
+# TF-IDF WITH LEMMAS INSTEAD OF ORIGINAL WORDS
+# tfidf_all %>%
+#   group_by(album) %>%
+#   slice_max(tf_idf, n = 10) %>%
+#   ungroup() %>%
+#   mutate(album = factor(album, levels = album_order),
+#     word_lemma = reorder_within(word_lemma, tf_idf, album)  # Using word_lemma in place of 'word'
+#   ) %>%
+#   ggplot(aes(tf_idf, word_lemma, fill = album)) +
+#   geom_col(show.legend = FALSE) +
+#   facet_wrap(~ album, scales = "free", ncol = 5) +
+#   scale_y_reordered() +
+#   labs(
+#     title = "Top 10 Most Distinctive Words per Album (TF-IDF)",
+#     x = "TF-IDF Score",
+#     y = NULL
+#   ) +
+#   theme_minimal() +
+#   theme(strip.text = element_text(size = 8))
+```
+
+By visualizing the TF-IDF, each album reveals a unique character, giving
+us a better insight into what distinctive topics Kanye might be covering
+in each of them. The terms displayed are not only frequently used in the
+respective albums but are also significant in distinguishing these
+albums from others.
+
+However, we must bear in mind that, for most bars, TF-IDF scores are
+pretty low. This may point to a significant vocabulary overlap: Kanye
+often reuses similar words or themes across all his albums.
 
 Finally, the proportion of each word per album will be calculated, and
 then the correlation between albums will be analyzed. In this case, two
@@ -295,7 +422,7 @@ albums will be selected:
 
 ```{r}
 # First, the proportion:
-frequency <- Kanye_West %>%
+frequency <- kanye_filtered %>%
   count(album, word) %>%
   group_by(album) %>%
   mutate(proportion = n / sum(n)) %>%
@@ -323,17 +450,16 @@ The goal of this analysis is to understand the emotions and tone of
 Kanye West's lyrics throughout his discography. To achieve this, we will
 apply three complementary sentiment analysis approaches:
 
-1.NRC: This allows us to identify specific emotions (joy, sadness,
-anger, fear, etc.) in his songs, providing a more nuanced view of the
-feelings expressed in his lyrics. This is especially useful for an
-artist like Kanye, whose content is highly emotional and varied.
+1.NRC: This allows us to identify specific feelings (joy, sadness,
+anger, fear, etc.) in his songs, providing a more nuanced view of his
+lyrics.
 
 2.Bing: To classify words as positive and negative, giving us an overall
-sense of the tone of each album or song.
+sense of the sentiment of each album or song.
 
 3.AFINN: To apply a numerical scale to the sentiment of words, allowing
 us to quantify the overall tone of each song and observe changes in
-emotional intensity over time.
+intensity over time.
 
 To carry out the sentiment analysis, we first need to load the lexicons
 and apply them to our data:
@@ -345,13 +471,13 @@ bing_lexicon <- get_sentiments("bing")
 afinn_lexicon <- get_sentiments("afinn")
 
 # Merge the dataframe with the lexicons
-Kanye_sentiment_NRC <- Kanye_West %>%
+kanye_nrc <- kanye_filtered %>%
   inner_join(nrc_lexicon, by = "word")
 
-Kanye_sentiment_Bing <- Kanye_West %>%
+kanye_bing <- kanye_filtered %>%
   inner_join(bing_lexicon, by = "word")
 
-Kanye_sentiment_AFINN <- Kanye_West %>%
+kanye_afinn <- kanye_filtered %>%
   inner_join(afinn_lexicon, by = "word")
 
 ```
@@ -359,7 +485,7 @@ Kanye_sentiment_AFINN <- Kanye_West %>%
 ### 1. Visualización de emociones con NRC
 
 ```{r}
-Kanye_sentiment_NRC %>%
+kanye_nrc %>%
   count(sentiment, sort = TRUE) %>%
   ggplot(aes(x = reorder(sentiment, n), y = n, fill = sentiment)) +
   geom_col(show.legend = FALSE) +
@@ -370,7 +496,7 @@ Kanye_sentiment_NRC %>%
   theme_minimal()
 
 # Crear tabla con el conteo de emociones
-emotion_table <- Kanye_sentiment_NRC %>%
+emotion_table <- kanye_nrc %>%
   count(sentiment, sort = TRUE)
 
 # Ver la tabla
@@ -387,21 +513,25 @@ For a deeper analysis, the following graph shows the 4 most frequent
 emotions in the lyrics by album:
 
 ```{r}
-Kanye_sentiment_NRC %>%
-  group_by(album, sentiment) %>% 
+kanye_nrc %>%
+  group_by(album, release_year, sentiment) %>% 
   count() %>%  
   group_by(album) %>% 
   slice_max(n, n = 4) %>%  
-  mutate(album = factor(album, levels = album_order)) %>%  
-  ggplot(aes(x = reorder(sentiment, n), y = n, fill = sentiment)) +
+  ungroup() %>%
+  mutate(
+    album = factor(album, levels = album_order),
+    sentiment = reorder_within(sentiment, n, album)
+  ) %>%
+  ggplot(aes(x = n, y = sentiment, fill = sentiment)) +
   geom_col(show.legend = FALSE) +
-  coord_flip() +
-  facet_wrap(~ album, scales = "free_y") + 
+  facet_wrap(~ album, scales = "free", ncol = 5) +
+  scale_y_reordered() +
   labs(title = "4 most frequent emotions per album",
-       x = "Emotion",
-       y = "Frequency") +
-  theme_minimal()
-
+       x = "Frequency",
+       y = NULL) +
+  theme_minimal() +
+  theme(strip.text = element_text(size = 8))
 ```
 
 In this analysis, the most frequent emotions per album of Kanye West are
@@ -425,7 +555,7 @@ What will be done is a binary classification between words considered
 positive and negative.
 
 ```{r}
-Kanye_sentiment_Bing %>%
+kanye_bing %>%
   count(sentiment) %>%
   ggplot(aes(x = sentiment, y = n, fill = sentiment)) +
   geom_col(show.legend = FALSE) +
@@ -443,18 +573,18 @@ to be consistent with the previous findings.
 Now, let's examine how this classification looks by album:
 
 ```{r}
-Kanye_sentiment_Bing %>%
-  count(album, sentiment) %>%  
+kanye_bing %>%
+  count(album, release_year, sentiment) %>%  
   mutate(album = factor(album, levels = album_order)) %>%  
   ggplot(aes(x = sentiment, y = n, fill = sentiment)) +
   geom_col(show.legend = FALSE) +
-  facet_wrap(~ album, scales = "free_y") +  
+  facet_wrap(~ album, scales = "free", ncol = 5) +  
   labs(title = "Number of Positive and Negative Words by Album",
        x = "Sentiment",
        y = "Frequency") +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))   
-
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        strip.text = element_text(size = 8))   
 
 ```
 
@@ -470,17 +600,18 @@ In this part, we will analyze the evolution of sentiment using the AFINN
 lexicon scores (from -3 to 3):
 
 ```{r}
-Kanye_sentiment_AFINN %>%
-  group_by(album) %>%
-  summarise(sentiment_score = sum(value)) %>%
-  mutate(album = factor(album, levels = album_order)) %>%  
+kanye_afinn %>%
+  group_by(album, release_year) %>%
+  summarise(sentiment_score = sum(value), .groups = "drop") %>%
+  mutate(album = factor(album, levels = album_order)) %>%
   ggplot(aes(x = album, y = sentiment_score, fill = sentiment_score)) +
   geom_col(show.legend = FALSE) +
   coord_flip() +
   labs(title = "Sentiment Evolution in Kanye's Albums",
        x = "Album",
        y = "Sentiment Score") +
-  theme_minimal()
+  theme_minimal() +
+  theme(strip.text = element_text(size = 8))
 
 ```
 
@@ -505,24 +636,25 @@ will also perform a relative analysis using the average instead of the
 sum of scores:
 
 ```{r}
-Kanye_sentiment_AFINN %>%
-  group_by(album) %>%
+kanye_afinn %>%
+  group_by(album, release_year) %>%
   summarise(sentiment_score_avg = mean(value)) %>% 
-  mutate(album = factor(album, levels = album_order)) %>% 
+  mutate(album = factor(album, levels = album_order)) %>%
   ggplot(aes(x = album, y = sentiment_score_avg, fill = sentiment_score_avg)) +
   geom_col(show.legend = FALSE) +
   coord_flip() +
-  labs(title = "Evolution of Sentiment in Kanye's Albums",
+  labs(title = "Sentiment Evolution in Kanye's Albums",
        x = "Album",
-       y = "Average Sentiment Score") +
-  theme_minimal()
+       y = "Sentiment Score") +
+  theme_minimal() +
+  theme(strip.text = element_text(size = 8))
 
 ```
 
 Now, the same trend is observed: the majority of albums have a negative
 average score, with the three previously mentioned albums still
 maintaining a positive score. However, since these are average scores,
-some changes are noticeable. The Single now has the highest positive
+some changes are noticeable. 808s & Heartbreak has the highest positive
 average score, and Yeezus (2013) is the album with the lowest average
 score.
 
@@ -547,13 +679,12 @@ It’s also worth mentioning that the style of music Kanye West creates
 often involves the use of slang, colloquial expressions, and insults,
 which further adds to the emotional intensity of his lyrics.
 
-#### INSULT ANALISIS???
+#### INSULT ANALYSIS???
 
 To analyze this, we will use the **Luis von Ahn List (LDNOOBW)**, which
-is one of the most comprehensive and maintained databases of offensive
-words in English. It also includes insults and slangs commonly used in
-hip-hop. Additionally, this list is publicly available on GitHub, making
-it easily accessible.
+is a database of offensive words in English. It includes insults and
+slang commonly used in hip-hop. This list is publicly available on
+GitHub.
 
 What we will do is first examine the relative frequency of insults by
 album to enable comparison across Kanye's discography. Then, we will
@@ -566,28 +697,27 @@ scores.
 url <- "https://raw.githubusercontent.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words/master/en"
 bad_words_vonahn <- readLines(url)
 
-#Then, we calculate the total number of words per album
-total_words_by_album <- Kanye_West %>%
+
+# Then, we calculate the total number of words per album
+total_words_by_album <- kanye_filtered %>%
   group_by(album) %>%
   summarise(total_words = n())
 
-Kanye_offensive <- Kanye_West %>%
+# We lemmatize the offensive words 
+kanye_offensive <- kanye_filtered %>%
   filter(word %in% bad_words_vonahn)
 
-
 # Also we need to calculate the insults per album
-insults_by_album <- Kanye_offensive %>%
+insults_by_album <- kanye_offensive %>%
   group_by(album) %>%
-  summarise(insult_count = n())
-
-# Finally, we can merge the total word count and insults count:
-relative_insults_by_album <- insults_by_album %>%
-  inner_join(total_words_by_album, by = "album") %>%
-  mutate(relative_insult_freq = insult_count / total_words)  # Calculate relative frequency
-
+  summarise(
+    insult_count = n()
+  ) |> 
+  left_join(total_words_by_album, by = "album") |> 
+  mutate(relative_insult_freq = insult_count / total_words)
 
 # then, the visualization:
-ggplot(relative_insults_by_album, aes(x = reorder(album, relative_insult_freq), y = relative_insult_freq, fill = relative_insult_freq)) +
+ggplot(insults_by_album, aes(x = reorder(album, relative_insult_freq), y = relative_insult_freq, fill = relative_insult_freq)) +
   geom_col(show.legend = FALSE) +
   coord_flip() +
   labs(title = "Relative Frequency of Insults by Album",
@@ -607,17 +737,16 @@ AFINN sentiment score to see if albums with more insults tend to have
 more negative sentiment.
 
 ```{r}
-# Firs, we get the average sentiment scores per album using AFINN 
-sentiment_by_album <- Kanye_sentiment_AFINN %>%
+# First, we get the average sentiment scores per album using AFINN 
+sentiment_by_album <- kanye_afinn %>%
   group_by(album) %>%
   summarise(sentiment_score_avg = mean(value))  # Average sentiment score
 
-# Then we merge the relative insult frequency with average sentiment scores
-insults_sentiment <- relative_insults_by_album %>%
-  inner_join(sentiment_by_album, by = "album")
+insults_by_album <- insults_by_album |> 
+  left_join(sentiment_by_album, by = "album") # join to the existing dataframe
 
 # Relationship between relative insult frequency and average sentiment score
-ggplot(insults_sentiment, aes(x = relative_insult_freq, y = sentiment_score_avg, label = album)) +
+ggplot(insults_by_album, aes(x = relative_insult_freq, y = sentiment_score_avg, label = album)) +
   geom_point(color = "red", size = 3) +  # albums
   geom_smooth(method = "lm", se = FALSE, color = "blue") +  # line
   geom_text(vjust = -0.5, size = 4) +  # Album labels
@@ -627,114 +756,181 @@ ggplot(insults_sentiment, aes(x = relative_insult_freq, y = sentiment_score_avg,
   theme_minimal()
 
 # Finally, the correlation to confirm the relationship
-correlation_result <- cor(insults_sentiment$relative_insult_freq, insults_sentiment$sentiment_score_avg)
+correlation_result <- cor(insults_by_album$relative_insult_freq, insults_by_album$sentiment_score_avg)
 correlation_result
 ```
 
-This graph and the correlation confirm this trend, meaning that albums with a higher number of insults generally have lower or more negative sentiment scores. As mentioned, the two albums Yeezus (2013) and My Beautiful Dark Twisted Fantasy (2010) have a higher frequency of insults and, at the same time, lower average AFINN sentiment scores. On the other hand, 808s & Heartbreak (2008), for example, has a positive AFINN score and a low presence of insults.
+This graph and the correlation confirm this trend, meaning that albums
+with a higher number of swear words generally have lower or more
+negative sentiment scores. As mentioned, the two albums Yeezus and My
+Beautiful Dark Twisted Fantasy have a higher frequency of curse words
+and, at the same time, lower average AFINN sentiment scores. On the
+other hand, 808s & Heartbreak, for example, has a positive AFINN score
+and a low presence of insults.
 
-Finally, we are going to visualize the most common insults or bad words in Kanye’s lyrics in a wordclou:
+```{r}
+range(insults_by_album$relative_insult_freq)
+mean(insults_by_album$relative_insult_freq)
+```
+
+The relative frequency of swear words ranges from 0.002 to 0.087. On
+average, Kanye's lyrics contain less than 4 swear words for every 100
+words.
+
+Lastly, we're going to visualize the most common insults or bad words in
+Kanye’s lyrics in a wordcloud. For this purpose, we must first lemmatize
+the words in our dataset, so that their variations (plurals, verb forms,
+etc.) are not considered as different words.
+
+```{r}
+kanye_offensive <- kanye_offensive |> 
+  mutate(
+         # word_stem = SnowballC::wordStem(word),
+         word_lemma = textstem::lemmatize_words(word)
+    )
+```
+
+Now, we can check how many unique words we have and how many unique
+lemmas were created:
+
+```{r}
+kanye_offensive |>
+  summarise(
+    total_words = n(),
+    unique_words = n_distinct(word),
+    unique_lemmas = n_distinct(word_lemma)
+  )
+
+# what lemmas are there?
+unique(kanye_offensive$word_lemma)
+```
+
+We have 36 words and 33 unique lemmas, which means that only 3 words
+were actually replaced by their canonical form through lemmatization.
+
+We can run a check to see what lemmas were created. We observe that some
+words weren't correctly lemmatized, this is possibly because insults and
+swearwords do not appear in the dictionaries. We can manually assign
+these words to the most suitable lemma:
+
+```{r}
+kanye_offensive <- kanye_offensive %>%
+  mutate(
+    word_lemma = case_when(
+      word == "titties" ~ "titty",
+      word == "fuckin"  ~ "fucking",
+      TRUE              ~ word_lemma
+    )
+  )
+```
+
+The last step is to plot the wordcloud:
 
 ```{r}
 # Count the frequency of bad words 
-insult_word_counts <- Kanye_offensive %>%
-  count(word, sort = TRUE)
+insult_word_counts <- kanye_offensive %>%
+  count(word_lemma, sort = TRUE)
 
 # Create a word cloud for the most common bad words
-wordcloud(words = insult_word_counts$word, 
+set.seed(123)
+wordcloud(words = insult_word_counts$word_lemma, 
           freq = insult_word_counts$n, 
           min.freq = 1, 
           max.words = 100, 
-          scale = c(4, 2.5), 
+          scale = c(5, 2), 
           colors = brewer.pal(8, "Dark2"))
 
 ```
 
-The most common insults in Kanye West's lyrics include "shit," "nigga,"
-"fuck," "ass," "bitch," "motherfucker," and "dick." The frequent use of
-these words highlights the tendency to employ aggressive language as a
-means of expressing raw, powerful emotion.
+The most common insults in Kanye West's lyrics are "shit", "nigga",
+"fuck", "ass", "bitch", "motherfucker" and "dick", which we believe is a
+common trend in American hip-hop by male artists.
 
+TF-IDF might serve us to analyze the representativeness of offensive
+words, although we anticipate that the scores will be fairly low, since
+we know that there is a short list of swear words which are likely to
+appear several time across all of Kanye's albums.
 
-
-NO SE SI SERÍA MEJOR LEMATIZE PRIMERO?porque hay algunas como bitch y bicthes
-
-# Term Frequency - TF-IDF
-
-In this section, we have several objectives: 1. To detect unique or "rare" words. 2. To analyze the representativeness of offensive words.
-
-To achieve this, we first need to calculate the TF-IDF:
 ```{r}
-# First, we calculate the TF-IDF
-tfidf_data <- Kanye_West %>%
-  count(album, word, sort = TRUE) %>%
-  bind_tf_idf(word, album, n) %>%
+# Calculate TF-IDF for all our words:
+
+kanye_filtered <- kanye_filtered |> 
+  mutate(word_lemma = textstem::lemmatize_words(word))
+
+tfidf_all <- kanye_filtered %>%
+  count(album, word_lemma, sort = TRUE) %>%
+  bind_tf_idf(word_lemma, album, n) %>%
   arrange(desc(tf_idf))
 
-# We want to visualize the 10 most representative words per album
-top_tfidf <- tfidf_data %>%
+# Then, filter the offensive words
+tfidf_offensive <- tfidf_all %>%
+  filter(word_lemma %in% bad_words_vonahn) 
+
+# Visualize the most important offensive words by TF-IDF for each album:
+
+tfidf_offensive %>%
   group_by(album) %>%
-  top_n(10, tf_idf) %>%
-  ungroup() 
-
-ggplot(top_tfidf, aes(x = reorder(word, tf_idf), y = tf_idf, fill = album)) +
-  geom_col(show.legend = FALSE) +  
-  coord_flip() +
-  facet_wrap(~ album, scales = "free_y") +
-  labs(title = "Top Words by TF-IDF for Each Album",
-       x = "Word",
-       y = "TF-IDF Score") +
-  theme_minimal()
-
-```
-
-The TF-IDF analysis seems to reveal that the lyrics are diverse. For example, words like “lift” in Singles and “ghosts” in Kids See Ghosts have relatively high TF-IDF scores, suggesting that these terms are not only frequently used in the respective albums but are also significant in distinguishing these albums from others.
-
-Albums like 808s & Heartbreak, which features words like "amazing" and "heartless", while Yeezus (2013), with words like "aahh", "300", and "bound". This means a switcht in the tone, some albums are more deeper and other seems to be more raw. Also, the analysis reveals the use of both intense emotional words and colloquial expressions that align with the overall tone and message of the albums
-
-
-
-Calculate TF-IDF for offensive words:
-```{r}
-# Filter offensive words 
-Kanye_offensive <- Kanye_West %>%
-  filter(word %in% bad_words_vonahn)  # List of offensive words previously loaded (Luis von Ahn)
-
-# Calculate TF-IDF for offensive words:
-tfidf_offensive <- Kanye_offensive %>%
-  count(album, word, sort = TRUE) %>%
-  bind_tf_idf(word, album, n) %>%
-  arrange(desc(tf_idf))
-
-# 3. Visualize the most important offensive words by TF-IDF for each album:
-top_offensive_tfidf <- tfidf_offensive %>%
-  group_by(album) %>%
-  top_n(10, tf_idf) %>%
-  ungroup()
-
-ggplot(top_offensive_tfidf, aes(x = reorder(word, tf_idf), y = tf_idf, fill = album)) +
+  slice_max(tf_idf, n = 10) %>%
+  ungroup() %>%
+  mutate(album = factor(album, levels = album_order),
+    word_lemma = reorder_within(word_lemma, tf_idf, album)
+  ) %>%
+  ggplot(aes(tf_idf, word_lemma, fill = album)) +
   geom_col(show.legend = FALSE) +
-  coord_flip() +
-  facet_wrap(~ album, scales = "free_y") +
-  labs(title = "Top Offensive Words by TF-IDF for each Album",
-       x = "Word",
-       y = "TF-IDF Score") +
-  theme_minimal()
-
+  facet_wrap(~ album, scales = "free", ncol = 5) +
+  scale_y_reordered() +
+  labs(
+    title = "Top 10 most distinctive swear words per Album (TF-IDF)",
+    x = "TF-IDF score",
+    y = NULL
+  ) +
+  theme_minimal() +
+  theme(strip.text = element_text(size = 8))
 ```
 
-Before interpreting the results, it is important to mention that there are albums where swear words are not as common, so their list of words is smaller.
+As we were expecting, the scores are low and most curse words with the
+top TF-IDF scores are repeated across the albums. This makes sense
+because swear words are usually not that descriptive or meaningful, but
+rather complements, attached to other words for emphasis, to express
+aggressiveness, etc. Due to their nature and the relatively low number
+of distinct swear words found in Kanye's lyrics, many of them are common
+to all of his albums and not distinctive of any of them.
 
-The album "Kids See Ghosts" (2018) features the word "sucks" with the highest TF-IDF, indicating that it is a particularly representative word for this album in relation to its frequency compared to others. The album "My Beautiful Dark Twisted Fantasy" (2010) includes several words with significant TF-IDF values such as "fucking", "pussy", and "motherfucker."
+# Word co-occurences
 
-Finally, the album "Yeezus" (2013) also shows a notable frequency of terms like "coon", "fuck", and "bitches", although not as prominently as in other albums. Some rarer words, such as "coon" in "Yeezus" (2013), "threesome" in "Ye" (2018), and "porn" in "My Beautiful Dark Twisted Fantasy" (2010), also appear.
+For this exercise, we will analyze the word co-occurences in Kanye's
+songs at the line level.
 
-On the other hand, terms like "nigga", "fuck", "bitch", and "ass" appear across multiple albums, but with variations in their TF-IDF. This suggests that, although they are common in Kanye's discography, their weight and prominence vary between different albums.
+The first thing we need to do is separate the lines from our original
+dataset, which we had called "kanye_west". We can split the text by the
+line breaks, which are signalled as "\n":
 
+```{r}
+lines_df <- kanye_west %>%
+  mutate(line = str_split(text, pattern = "\n")) %>%
+  unnest(line) %>%
+  filter(str_detect(line, "\\w")) |> # remove empty lines
+  mutate(line_id = row_number())
+```
 
+We can now tokenize words keeping the line id, and then count how many
+times words co-appear in the same line, using the pairwise_count function:
+```{r}
+words_by_line <- lines_df %>%
+  unnest_tokens(word, line) |> 
+  anti_join(stop_words)
 
+word_pairs <- words_by_line %>%
+  pairwise_count(item = word, feature = line_id, sort = TRUE)
+```
 
- 
- 
+It might be interesting to analyze, for example, what words appear
+together with words referring to women in Kanye's lyrics:
+```{r}
+word_pairs %>%
+  filter(item1 %in% c("girl", "bitch", "baby", "girls", "bitches"),
+         n > 2) %>%
+  arrange(desc(n))
+```
 
-# Third technique
+FALTA TEXTO
