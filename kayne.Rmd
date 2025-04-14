@@ -1,44 +1,15 @@
 ---
-title: "Final Assignment"
-author: " Pablo Romero, Irene García, Jorge Ramos"
-date: "2025-04-04"
+title: "From College Dropout to Ye: Kanye West's lyrical evolution."
+author: " Irene García-Espantaleón Artal, Jorge Ramos Val y Pablo Romero Medinilla"
+date: "2025-04-14"
 output: html_document
 editor_options: 
   markdown: 
     wrap: 72
 ---
 
-# Introduction
-
-Kanye West, known for his unique style and ability to fuse musical
-genres, has sparked numerous debates both for his music and his behavior
-offstage. Recently, he has been at the center of media attention due to
-controversial remarks and attitudes, including neo-Nazi comments and his
-contentious treatment of his partners (such as his ex-wife, Kim
-Kardashian, or his current wife, Bianca Censori). These situations have
-raised growing concerns about the potential impact of his persona on
-society.
-
-Text analysis is a fundamental tool for this purpose, allowing us to
-extract patterns and insights from large volumes of textual data. To
-achieve this, three different techniques have been selected:
-
-1.  Sentiment Analysis: The objective is to explore the emotions and
-    sentiments expressed in his songs throughout his career.
-
-2.  Term Frequency - TF-IDF: The objective is to detect rare words in
-    albums compared to others and see how representative offensive words
-    are.
-
-3.  
-
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = TRUE)
-```
-
-```{r}
-set.seed(123)
-rm(list = ls())
 ```
 
 # Packages
@@ -60,6 +31,28 @@ library(igraph)
 library(widyr)
 ```
 
+# Introduction
+
+Kanye West, known for his unique style and ability to fuse musical genres, has sparked numerous debates both for his music and his behavior
+offstage. While on a musical level, he is probably the most influential rapper of the 21st century, on a personal level, he constantly makes
+controversial statements of all kinds. Recently, he has been at the center of media attention due to controversial remarks and attitudes, including neo-Nazi comments and his contentious treatment of his partners (such as his ex-wifes, Kim Kardashian and Bianca Censori). These situations have raised growing concerns about the potential impact of his persona on society.
+
+Text analysis is a fundamental tool for this purpose, allowing us to extract patterns and insights from large volumes of textual data. To achieve this, three different techniques have been selected:
+
+1.  Term Frequency - TF-IDF: The objective is to detect rare words in
+    albums compared to others and see how representative offensive words
+    are.
+
+2.  Sentiment Analysis: The objective is to explore the emotions and
+    sentiments expressed in his songs throughout his career.
+
+3.  
+
+```{r}
+set.seed(123)
+rm(list = ls())
+```
+
 # Download the data
 
 ```{r}
@@ -67,10 +60,8 @@ library(widyr)
 kanye_west <- read.csv("https://github.com/babyakja/GA_capstone_project/raw/master/data/Kanye%25West.csv")
 ```
 
-The selected dataframe comes from a GitHub repository containing a total
-of 98 Kanye West songs, covering his discography from 2004 to 2018.
-However, the original CSV file does not include album identification or
-release years, so this information will need to be added manually to
+The selected dataframe comes from a GitHub repository containing a total of 98 Kanye West songs, covering his discography from 2004 to 2018.
+The choice of this dataset is based on choosing approximately the 100 most famous songs of the American rapper, going through his most relevant eras both musically and personally. However, the original CSV file does not include album identification or release years, so this information will need to be added manually to
 complete the analysis.
 
 ```{r}
@@ -130,28 +121,29 @@ head(kanye_west)
 # We check for NAs
 kanye_west %>% 
   filter(is.na(album) | is.na(release_year))
+
+kanye_colors <- c(
+  "The College Dropout (2004)" = "#ec9f1f",
+  "Late Registration (2005)" = "#461d0d",
+  "Graduation (2007)" = "#b13998",
+  "808s & Heartbreak (2008)" = "#eecccc",
+  "My Beautiful Dark Twisted Fantasy (2010)" = "#ee2341",
+  "Yeezus (2013)" = "#fe0100",
+  "The Life of Pablo (2016)" = "#f58c59",
+  "Kids See Ghosts (2018)" = "#c2dcd8",
+  "Ye (2018)" = "#233d5d"
+)
 ```
 
-With this addition, we now have the necessary information to carry out
-the analysis. As observed, there are a total of 9 albums and one song
-that does not belong to any, meaning it is a single. We don't know why
-it was included in the dataset, because it is not the only single
-released by the artist in this time period. Since we're interesed in
-working at the album level, we will drop this observation now:
+With this addition, we now have the necessary information to carry out the analysis. As observed, there are a total of 9 albums and one song that does not belong to any, meaning it is a single. We don't know why it was included in the dataset, because it is not the only single released by the artist in this time period. Since we're interesed in working at the album level, we will drop this observation now:
 
 ```{r}
 kanye_west <- kanye_west %>%
   filter(!is.na(album))
 ```
 
-The next step is to clean the data set: In the text variable, there is
-extra information that does not correspond to the lyrics but instead
-includes details about the production or who sings in specific parts of
-the song (e.g., Intro, Verse 1, etc.). If this information were
-available for all songs, analyzing the producers or collaborators could
-provide valuable insights to enrich the study. However, since it is not
-consistently present across all tracks, it is best to remove it to avoid
-potential issues.
+The next step is to clean the data set: In the text variable, there is extra information that does not correspond to the lyrics but instead
+includes details about the production or who sings in specific parts ofthe song (e.g., Intro, Verse 1, etc.). If this information wereavailable for all songs, analyzing the producers or collaborators could provide valuable insights to enrich the study. However, since it is not consistently present across all tracks, it is best to remove it to avoid potential issues.
 
 ```{r}
 # Remove the brackets and the information inside
@@ -160,14 +152,11 @@ kanye_west$text <- gsub("\\[.*?\\]", "", kanye_west$text)
 
 # Tokenization and stopwords:
 
-The lyrics of Kanye West's songs will be tokenized to make working with
-words more manageable and structured.
+The lyrics of Kanye West's songs will be tokenized to make working with words more manageable and structured.
 
-1.Punctuation will be removed since, in a text analysis like this, it
-does not add value to identifying key words or term frequency.
+1.  Punctuation will be removed since, in a text analysis like this, it does not add value to identifying key words or term frequency.
 
-2.All words will be converted to lowercase to prevent the same words in
-uppercase and lowercase from being treated as different.
+2.  All words will be converted to lowercase to prevent the same words in uppercase and lowercase from being treated as different.
 
 ```{r}
 # Tokenization with punctuation removal 
@@ -188,22 +177,18 @@ kanye_tokens %>%
   arrange(release_year)
 ```
 
-Now, we filter the stopwords (from `tidytext package`) in order to
-eliminate those uninformative words:
+Now, we filter the stopwords (from `tidytext package`) in order to eliminate those uninformative words:
 
 ```{r}
 kanye_filtered <- kanye_tokens %>%
   anti_join(stop_words)
 ```
 
-With these steps, we now have our table ready for analysis, ensuring
-that the data is clean and structured.
+With these steps, we now have our table ready for analysis, ensuring that the data is clean and structured.
 
 # Introductory Analysis
 
-Before delving into the selected techniques, it is necessary to conduct
-an introductory analysis to better understand the distribution and
-characteristics of the words present in Kanye West's lyrics.
+Before delving into the selected techniques, it is necessary to conduct an introductory analysis to better understand the distribution and characteristics of the words present in Kanye West's lyrics.
 
 ```{r}
 # Count the frequency of words
@@ -214,12 +199,9 @@ word_counts <- kanye_filtered %>%
 head(word_counts, 10)
 ```
 
-From this table we can already get an idea of the preeminence of swear
-words, slurs and slang in Kanye's discography, but we will have to
-conduct a deeper analysis to get a more accurate picture.
+From this table we can already get an idea of the preeminence of swear words, slurs and slang in Kanye's discography, but we will have to conduct a deeper analysis to get a more accurate picture.
 
-The top word, "la", doesn't seem to be very informative, but let's see
-it in context to have a better idea:
+The top word, "la", doesn't seem to be very informative, but let's see it in context to have a better idea:
 
 ```{r}
 corpus <- corpus(kanye_west$text)
@@ -227,10 +209,7 @@ corpus <- corpus(kanye_west$text)
 kwic(tokens(corpus), "la", window = 5)
 ```
 
-The word 'la', appears to carry three different meanings in Kanye's
-songs: an article in a foreign language, LA (Los Angeles) and, most
-commonly, a vocable - a wordless sound or syllable with no semantic
-meaning used in music.
+The word 'la', appears to carry three different meanings in Kanye's songs: an article in a foreign language, LA (Los Angeles) and, most commonly, a vocable - a wordless sound or syllable with no semantic meaning used in music.
 
 Let's make a plot and a wordcloud to see this more visually:
 
@@ -269,19 +248,11 @@ wordcloud(words = word_counts$word,
           random.order = FALSE)
 ```
 
-Both of these expand on the idea from the previous table: we have some
-seemingly meaningless syllables, similar to "la", such as "yeah", "hey",
-"uh" or "bam", as well as some more examples of swearwords and slang:
-"fuck", "ass", "damn", "yo"...
+Both of these expand on the idea from the previous table: we have some seemingly meaningless syllables, similar to "la", such as "yeah", "hey", "uh" or "bam", as well as some more examples of swearwords and slang: "fuck", "ass", "damn", "yo"...
 
-We verify the presence of words referring to women, which we could also
-anticipate: "girl", "baby", "mama", "hoes", "bitch"...
+We verify the presence of words referring to women, which we could also anticipate: "girl", "baby", "mama", "hoes", "bitch"...
 
-Some of the words in the graphs, like "time", "God", "money" or "kids",
-might reveal other topics present in Kanye's discography; but, in
-general, we can say that the most common words are pretty ambiguous, and
-can take on very different meanings depending on the context, for which
-we will have to take our analysis some steps further.
+Some of the words in the graphs, like "time", "God", "money" or "kids", might reveal other topics present in Kanye's discography; but, in general, we can say that the most common words are pretty ambiguous, and can take on very different meanings depending on the context, for which we will have to take our analysis some steps further.
 
 The following chart shows the 10 most common words per album:
 
@@ -293,12 +264,13 @@ kanye_filtered %>%
   group_by(album) %>%
   top_n(10, n) %>%
   ungroup() %>%
-  mutate(album = factor(album, levels = album_order),  # Orders albums chronologically
+  mutate(album = factor(album, levels = album_order),
          word = reorder_within(word, n, album)) %>%
   ggplot(aes(n, word, fill = album)) +
   geom_col(show.legend = FALSE) +
   facet_wrap(~ album, scales = "free_y", ncol = 5) +
   scale_y_reordered() +
+  scale_fill_manual(values = kanye_colors) +
   labs(title = "Most frequent words per album",
        x = "Count",
        y = NULL) +
@@ -336,6 +308,7 @@ kanye_filtered %>%
   geom_col(show.legend = FALSE) +
   facet_wrap(~ album, scales = "free_y", ncol = 5) +
   scale_y_reordered() +
+  scale_fill_manual(values = kanye_colors) +
   labs(title = "Top 10 most characteristic words per album (Term Frequency)",
        x = "Term Frequency",
        y = NULL) +
@@ -370,6 +343,7 @@ kanye_filtered %>%
   geom_col(show.legend = FALSE) +
   facet_wrap(~ album, scales = "free", ncol = 5) +
   scale_y_reordered() +
+  scale_fill_manual(values = kanye_colors) +
   labs(
     title = "Top 10 most distinctive words per album (TF-IDF)",
     x = "TF-IDF score",
@@ -379,10 +353,10 @@ kanye_filtered %>%
   theme(strip.text = element_text(size = 8))
 ```
 
-------- no sé si todos estos gráficos tendríamos que haberlos hecho con lemmas
-en vez de con las palabras tal cual......
-aquí dejo el código del gráfico de TF-IDF con lemmas, aunque el objeto de 
-tfidf_all lo creamos más tarde
+------- no sé si todos estos gráficos tendríamos que haberlos hecho con
+lemmas en vez de con las palabras tal cual...... aquí dejo el código del
+gráfico de TF-IDF con lemmas, aunque el objeto de tfidf_all lo creamos
+más tarde
 
 ```{r}
 # TF-IDF WITH LEMMAS INSTEAD OF ORIGINAL WORDS
@@ -482,13 +456,28 @@ kanye_afinn <- kanye_filtered %>%
 
 ```
 
-### 1. Visualización de emociones con NRC
+### 1. Sentiment Analysis with NRC
 
 ```{r}
+kanye_palette <- c(
+  "#ec9f1f",  # The College Dropout
+  "#461d0d",  # Late Registration
+  "#b13998",  # Graduation
+  "#eecccc",
+  "#ee2341",# 808s / MBDTF
+  "#fe0100",  # Yeezus
+  "#f58c59",  # The Life of Pablo
+  "#c2dcd8",  # Kids See Ghosts
+  "#233d5d",
+  "#1026b7"# Ye
+)
+
 kanye_nrc %>%
   count(sentiment, sort = TRUE) %>%
-  ggplot(aes(x = reorder(sentiment, n), y = n, fill = sentiment)) +
+  mutate(sentiment = factor(sentiment, levels = unique(reorder(sentiment, n)))) %>%
+  ggplot(aes(x = sentiment, y = n, fill = sentiment)) +
   geom_col(show.legend = FALSE) +
+  scale_fill_manual(values = kanye_palette) +
   coord_flip() +
   labs(title = "Distribution of emotions in Kanye's lyrics",
        x = "Emotion",
@@ -549,7 +538,7 @@ sentiments along with anger and trust. In contrast, in Kids See Ghosts
 (2018), sentiments are less frequent, but positive and negative
 sentiments still stand out.
 
-### 2. Classification with BING:
+### 2. Classification BING Classification
 
 What will be done is a binary classification between words considered
 positive and negative.
@@ -594,7 +583,7 @@ positive. However, the gap appears to be larger in more recent albums
 (except for the aforementioned one), suggesting a trend towards the use
 of negative words.
 
-### 3. Evolution of sentiement with AFINN:
+### 3. AFINN's Sentiment Evolution:
 
 In this part, we will analyze the evolution of sentiment using the AFINN
 lexicon scores (from -3 to 3):
@@ -873,12 +862,12 @@ tfidf_offensive %>%
   slice_max(tf_idf, n = 10) %>%
   ungroup() %>%
   mutate(album = factor(album, levels = album_order),
-    word_lemma = reorder_within(word_lemma, tf_idf, album)
-  ) %>%
+         word_lemma = reorder_within(word_lemma, tf_idf, album)) %>%
   ggplot(aes(tf_idf, word_lemma, fill = album)) +
   geom_col(show.legend = FALSE) +
   facet_wrap(~ album, scales = "free", ncol = 5) +
   scale_y_reordered() +
+  scale_fill_manual(values = kanye_colors) +
   labs(
     title = "Top 10 most distinctive swear words per Album (TF-IDF)",
     x = "TF-IDF score",
@@ -914,7 +903,9 @@ lines_df <- kanye_west %>%
 ```
 
 We can now tokenize words keeping the line id, and then count how many
-times words co-appear in the same line, using the pairwise_count function:
+times words co-appear in the same line, using the pairwise_count
+function:
+
 ```{r}
 words_by_line <- lines_df %>%
   unnest_tokens(word, line) |> 
@@ -924,8 +915,11 @@ word_pairs <- words_by_line %>%
   pairwise_count(item = word, feature = line_id, sort = TRUE)
 ```
 
+## Women referal Network
+
 It might be interesting to analyze, for example, what words appear
 together with words referring to women in Kanye's lyrics:
+
 ```{r}
 word_pairs %>%
   filter(item1 %in% c("girl", "bitch", "baby", "girls", "bitches"),
@@ -933,4 +927,126 @@ word_pairs %>%
   arrange(desc(n))
 ```
 
-FALTA TEXTO
+The table above shows the most frequent co-occurring words with terms such as “girl”, “bitch”, or “baby” in Kanye’s lyrics. This kind of analysis can give us insight into the tone, context, and narrative style Kanye uses when referring to women throughout his discography. We could visualize these relationships using a network graph, highlighting the central words and their strongest connections:
+
+```{r}
+
+word_pairs %>%
+  filter(item1 %in% c("girl", "bitch", "baby", "girls", "bitches"),
+         n >= 3) %>%
+  graph_from_data_frame() %>%
+  ggraph(layout = "fr") +
+  geom_edge_link(aes(edge_alpha = n), show.legend = FALSE) +
+  geom_node_point(color = "#ee2341", size = 4) +
+  geom_node_text(aes(label = name), repel = TRUE) +
+  theme_void() +
+  labs(title = "Co-occurrence network around women-related words")
+
+```
+
+## Self-Reflection Network in Kanye’s Lyrics
+
+To explore how Kanye reflects on himself in his lyrics, we conducted an analysis of word co-occurrences around the terms “I”, “me”, and “my”. These words serve as markers of self-representation in the lyrics, and by analyzing which words tend to co-occur with them, we can gain insight into Kanye’s self-perception, ego, vulnerabilities, and other recurring themes in his music. First, we filter the words in Kanye’s lyrics to focus on those that appear alongside “I”, “me”, and “my”. This allows us to focus on the words and themes that are directly related to Kanye’s self-representation.
+
+```{r echo=TRUE}
+
+lines_df <- kanye_west %>%
+  mutate(line = str_split(text, pattern = "\n")) %>%
+  unnest(line) %>%
+  filter(str_detect(line, "\\w")) %>%  # Remove empty lines
+  mutate(line_id = row_number())  # Add line_id
+
+important_words <- c("i", "me", "my")
+
+custom_stop_words <- stop_words %>%
+  filter(!word %in% important_words)
+
+words_by_line <- lines_df %>%
+  unnest_tokens(word, line) %>%
+  anti_join(custom_stop_words)
+
+word_pairs <- words_by_line %>%
+  pairwise_count(item = word, feature = line_id, sort = TRUE)
+
+word_pairs %>%
+  filter(item1 %in% c("i", "me", "my"),
+         n >= 10) %>%
+  arrange(desc(n))
+
+```
+
+Next, we visualize the co-occurrences in a network graph. In this graph, the central words are “I”, “me”, and “my”, and we look at how these self-referential terms connect to other words. This network visualization helps us understand which words or themes are most closely linked to Kanye’s self-representation.
+
+```{r echo=TRUE}
+
+word_pairs %>%
+  filter(item1 %in% c("i", "me", "my"),
+         n >= 7) %>%
+  graph_from_data_frame() %>%
+  ggraph(layout = "fr") +
+  geom_edge_link(aes(edge_alpha = n), show.legend = FALSE) +
+  geom_node_point(color = "#f58c59", size = 5) +
+  geom_node_text(aes(label = name), repel = TRUE) +
+  theme_void() +
+  labs(title = "Co-occurrence network around self-perception words")
+
+```
+
+## Religion Network
+
+```{r}
+
+religious_words <- c("god", "jesus", "lord", "faith", "pray", "church", "gospel", "heaven", "blessings", "soul")
+
+important_words <- religious_words
+custom_stop_words <- stop_words %>%
+  filter(!word %in% important_words)
+
+words_by_line <- lines_df %>%
+  unnest_tokens(word, line) %>%
+  anti_join(custom_stop_words)
+
+word_pairs <- words_by_line %>%
+  pairwise_count(item = word, feature = line_id, sort = TRUE)
+
+word_pairs %>%
+  filter(item1 %in% religious_words,
+         n >= 2) %>%
+  graph_from_data_frame() %>%
+  ggraph(layout = "fr") +
+  geom_edge_link(aes(edge_alpha = n), show.legend = FALSE) +
+  geom_node_point(color = "#233d5d", size = 4) +  
+  geom_node_text(aes(label = name), repel = TRUE) +
+  theme_void() +
+  labs(title = "Co-occurrence network around religion-related words")
+
+```
+
+## Money Network
+
+```{r}
+
+money_words <- c("money", "cash", "rich", "wealth", "dollars", "gold", "rolls", "bills", "chains", "luxury", "spend", "buy", "paid")
+important_words <- money_words
+
+custom_stop_words <- stop_words %>%
+  filter(!word %in% important_words)
+
+words_by_line <- lines_df %>%
+  unnest_tokens(word, line) %>%
+  anti_join(custom_stop_words)
+word_pairs <- words_by_line %>%
+  pairwise_count(item = word, feature = line_id, sort = TRUE)
+word_pairs %>%
+  filter(item1 %in% money_words,
+         n >= 2) %>%
+  graph_from_data_frame() %>%
+  ggraph(layout = "fr") +
+  geom_edge_link(aes(edge_alpha = n), show.legend = FALSE) +
+  geom_node_point(color = "#ec9f1f", size = 4) +  
+  geom_node_text(aes(label = name), repel = TRUE) +
+  theme_void() +
+  labs(title = "Co-occurrence network around money-related words")
+
+```
+
