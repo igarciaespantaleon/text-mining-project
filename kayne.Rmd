@@ -943,6 +943,11 @@ word_pairs %>%
   labs(title = "Co-occurrence network around women-related words")
 
 ```
+What stands out from this network is that many words that appear together with plural terms ("girls" and "bitches") seem to be similar in nature, denoting topics like party and celebration ("celebration", "mess", "wild"), sometimes involving the presence of alcohol and drugs ("champagne", "weed", "drunk"). 
+
+The world "girl" is particularly linked to the words "head", "mistake", "gotta" and "leave". This might point at some kind of problematic relationship between Kanye and one or more girls, where he expresses the desire or intention to turn away from her or them. Other words that co-occur with "girl" carry varied meanings, some positive ("love"), some related to physical appearance ("hot", "ass"), and some probably used in a pejorative way ("spoiled", "white").
+
+Lastly, words that share lines with "baby" seem to depart from the previous terms, reflecting a more intimate relationship with the subject: "touch", "life", "feel", "hand", "home", "mine", "plan", etc. This makes sense considering that baby is used frequently as an affectionate nickname, while "bitch" is a slur against women and "girl" is, in principle, a neutral appellative. We have considered the possibility that Kanye uses “baby” in a different sense (namely to refer to a child), but we believe that the likelihood of this is low.
 
 ## Self-Reflection Network in Kanye’s Lyrics
 
@@ -969,7 +974,7 @@ word_pairs <- words_by_line %>%
   pairwise_count(item = word, feature = line_id, sort = TRUE)
 
 word_pairs %>%
-  filter(item1 %in% c("i", "me", "my"),
+  filter(item1 %in% c("i", "me", "my", "kanye"),
          n >= 10) %>%
   arrange(desc(n))
 
@@ -981,7 +986,7 @@ Next, we visualize the co-occurrences in a network graph. In this graph, the cen
 
 word_pairs %>%
   filter(item1 %in% c("i", "me", "my"),
-         n >= 7) %>%
+         n >= 12) %>%
   graph_from_data_frame() %>%
   ggraph(layout = "fr") +
   geom_edge_link(aes(edge_alpha = n), show.legend = FALSE) +
