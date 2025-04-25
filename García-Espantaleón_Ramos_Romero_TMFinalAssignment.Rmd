@@ -1342,16 +1342,15 @@ accomplishments through nightlife reinforces the message of his songs.
 ## c. Religion Network
 
 We then explore the specific co-occurrence network of terms related to
-religion and the sacred. We selected words such as “God”, “Jesus”,
-‘pray’, “hallelujah” and their variations, and constructed a graph that
-allows us to identify how these concepts dialogue with each other and
-with other topics (faith, redemption, guilt). This analysis facilitates
-understanding the density and context in which Kanye incorporates
-religious references in his lyrics.
+religion and the sacred. We selected words such as “God”, “Jesus”, 
+"pray", etc. and constructed a graph that allows us to identify how 
+these concepts dialogue with each other and with other topics (faith, 
+redemption, guilt). This analysis facilitates understanding the density 
+and context in which Kanye incorporates religious references in his lyrics.
 
 ```{r}
 # Define a list of religion-related keywords
-religious_words <- c("god", "jesus", "lord", "faith", "pray", "church", "gospel", "heaven", "blessings", "soul")
+religious_words <- c("god", "jesus", "lord", "faith", "pray", "prayer", "prayers", "church", "gospel", "heaven", "blessings", "soul", "bless", "hallelujah", "blessed", "religious", "religion", "believer")
 
 # Filter for strong co-occurrences involving religious terms and plot the network
 word_pairs %>%
@@ -1370,24 +1369,26 @@ word_pairs %>%
 ```
 
 The “Religion Network” shows that ‘God’ and “Jesus” act as authentic
-centers of gravity in the graph, with a high degree of betweenness,
-which means that these terms serve as a link between different semantic
-nuclei. While the words related to Jesus speak of what he teaches or
-gives (love, save, etc.), those related to god are more varied in style.
-Likewise, the relationship with God is something especially discussed in
-his work. In his own album “Yeezus” he compares himself to the son of
-God on earth. In addition, in more recent works that have not been
-analyzed in this work we observe how the artist has moved towards a
-stage of constant search for God through his songs. In the same way, we
-do observe some unions of terms that make us understand that the use of
-religiosity can sometimes border on the profane in his lyrics, when
-relating terms of nighlife with God.
+centers of gravity in the graph. In general, we observe an ambivalent
+tone in Kanye's lyrics relating to religious words. While words linked
+to "Jesus" make more contextual sense ("love", "save"), the term "God"
+seems to be used in a broader sense (the stronger link with it forms
+the expression "god damn", which probably carries no real religious
+meaning).
+In the same way, we do observe some unions of terms that make us
+understand that the use of religiosity can sometimes border on the
+profane in his lyrics. For example, the word "nightlife" appears in
+the "God" cluster; the word "religion" is linked to the terms "drugs"
+and "pussy" in Kanye's lyrics. Another one of the chosen words, "soul",
+is probably not really used in the songs analyzed here in a religious 
+sense.
+The two words that are the core to the most important clusters, "God"
+and "Jesus", appear together with "Devil's" and "Satan" respectively,
+which reveals Kanye's tension or duality when discussing religion
+or faith. 
+However, we know that the topic of religion and the relationship to God
+is further explored in his later work.
 
-As a whole, this network reveals an ongoing dialectic between the sacred
-and the profane in Kanye West's work. The thematic communities show not
-only his fascination with the spiritual, but also how he uses religious
-iconography to articulate deep emotional tensions, from guilt to the
-triumphant celebration of his own artistic “resurrection.”
 
 ## d. Money Network
 
@@ -1401,7 +1402,8 @@ dimension is in his narrative.
 ```{r}
 # Define a list of money-related keywords
 money_words <- c("money", "cash", "rich", "wealth", "dollars", "gold", 
-                 "rolls", "bills", "chains", "luxury", "spend", "buy", "paid")
+                 "rolls", "bills", "chains", "luxury", "spend", "buy", "pay",
+                 "cost")
 
 # Filter for co-occurrences involving money-related words and visualize the network
 word_pairs %>%
@@ -1419,28 +1421,35 @@ word_pairs %>%
 
 ```
 
-The node “money” clearly stands out as the most connected, with a high
-degree of closeness centrality, which indicates that it serves as a
-direct bridge to multiple concepts associated with wealth. Around it
-gravitate terms such as “rich”, ‘cash’ and “gold”, which form a primary
-core of material exaltation.
-
-Interconnected with this main group, thematic clusters appear that
-combine ostentation with social criticism: for example, nodes such as
-“power” are linked to “wealth” and ‘nobility’ and “cost”, suggesting
-reflections on how money is power for the artist. Likewise, terms that
-allude to the economic “game” emerge - “buy” ‘pay’ or “play”- which
-introduces a dimension of risk and strategy in the narrative. Overall,
-this network shows that the theme of money in Kanye West is not merely
-decorative: It works in a direct way to narrate everything that money
-can give you both on a more mundane level and from the perspective of
-power.
+The node “money” clearly stands out as the most connected, serving as
+a direct bridge to multiple concepts associated with wealth. Around it
+gravitate terms such as “pay”, ‘buy’ and “gold”, which form a primary
+core of material exaltation. The words that appear in these clusters
+are indeed the most materialistic of the graph, referring to very
+particular, practical uses of money (weed, smoke, spaceship, insured,
+lipo). Other words are joined with “money” to create expressions of 
+abundance (pile, stack).
 
 On the other hand, we see relationships at the money level that are
 circumscribed to specific songs, as for example with the song “Gold
-Digger” in which she talks about how a woman tries to get money from her
+Digger” in which he talks about how a woman tries to get money from her
 lovers for aesthetic operations, luxuries, etc. This explains certain
 relationships that we see in the center of the “money” node.
+
+Interconnected with this main group, thematic clusters appear that
+combine deeper or conflicting reflections on the subject of money:
+for example, nodes such as “power” are linked to “wealth” and ‘nobility’,
+suggesting reflections on how money is power for the artist. The cluster
+around "rich" is hard to decode: words like "cotton", "slave" or "fabric" 
+emerge, perhaps alluding to slave labor or pointing to how people (or 
+himself) are enslaved by money.
+
+Overall, this network shows that the theme of money in Kanye West is
+not merely decorative: it works in a direct way to narrate everything
+that money can give you both on a more mundane level and from the
+perspective of power. However, Kanye is not always the subject of
+these expressions, but he also discusses how other subjects access
+to and use their money.
 
 # Final Considerations
 
@@ -1449,46 +1458,48 @@ West's lyrics beyond just counting words, diving into themes like
 identity, spirituality, and ambition. We analyzed almost a hundred of
 his songs to spot frequently used words and examine how they connect,
 uncovering deeper stories about who he is, what he believes in, and what
-drives him.
+drives him. We aimed to unveil the changes, as well as the continuities,
+in his lyrics over more than 15 years of production. We revealed a trend 
+towards polarization in the sentiment expressed in Kanye's songs, with 
+the distance between negative and positive words widening over time. We
+also explored the use of slang, swear words and insults across his 
+discography, and how these relate to the overall tone of his albums. 
+Finally, we built some visualizations to convey the specific vocabulary 
+and the type of language used by the artist in different key themes in his
+music.
 
 Despite these achievements, our study encountered several methodological
 challenges worth noting. Firstly, the corpus was limited to Kanye's solo
 albums, excluding collaborations, promotional singles, and recent works
 after 2018. Including these additional texts in future research would
-enhance the temporal breadth and stylistic understanding of Kanye’s
-evolving artistic direction. Employing techniques such as topic modeling
-(LDA, NMF) or phrase embeddings could further illuminate latent thematic
-structures not immediately evident through traditional frequency
-analysis.
+enhance the temporal breadth and stylistic understanding of Kanye’s 
+evolving artistic direction. Furthermore, employing techniques such as
+topic modeling (LDA, NMF) or phrase embeddings could further illuminate 
+latent thematic structures not immediately evident through traditional
+frequency analysis.
 
 Secondly, inconsistencies in lemmatization during the text processing
 phase sometimes resulted in artificially fragmented terms (e.g., "run"
 vs. "running" vs. "ran"). Applying consistent lemmatization or stemming
-prior to frequency and TF-IDF analysis would significantly improve our
-lexical precision, ensuring that morphological variations are grouped
-appropriately and thus reflecting a more accurate portrayal of Kanye’s
-lyrical richness.
+prior to frequency and TF-IDF analysis, as well as word co-occurence,
+would likely improve our lexical precision, ensuring that morphological 
+variations are grouped appropriately and thus reflecting a more accurate 
+portrayal of Kanye’s lyrical richness.
 
-Thirdly, our sentiment analysis relied heavily on lexicons such as Bing,
-NRC, and AFINN, which have inherent limitations when analyzing lyrics
-rich in irony, double meanings, and specifically hip-hop slang. To
-address these nuances more effectively, future studies should integrate
-other advanced contextual language models like BERT or RoBERTa, capable
-of capturing deeper semantic and emotional subtleties. Moreover,
+Thirdly, our sentiment analysis relied on lexicons such as Bing, NRC,
+and AFINN, which have inherent limitations when analyzing lyrics rich 
+in irony, double meanings, and specific hip-hop slang. To address 
+these nuances more effectively, future studies should integrate other
+advanced contextual language models like BERT or RoBERTa, capable of
+capturing deeper semantic and emotional subtleties. Moreover, 
 complementing our quantitative insights with qualitative analysis (such
 as reviews, interviews, audience reception, and visual content) would
 ground our findings in a richer socio-cultural context. This scope
-should ensures that our conclusions go beyond statistical descriptions,
+should ensure that our conclusions go beyond statistical descriptions,
 allowing a deeper understanding of how Kanye’s lyrics resonate
 emotionally and culturally with diverse audiences over time.
 
 In conclusion, this project demonstrates how text mining can illuminate
-critical dimensions of artistic expression. In our case it has revealed
-Kanye West's introspective depth, tensions between spirituality and
-skepticism, and his aspirations. However, it also highlights significant
-opportunities for methodological upgrades. By integrating systematic
-lemmatization, advanced language models, corpus expansion, and
-qualitative methods, future studies can transform descriptive analyses
-into powerful predictive tools, capable of anticipating cultural
-impacts, genre evolutions, and linguistic trends across broader musical
-and social contexts.
+critical dimensions of artistic expression, although, as we have tried
+to make clear, what has been done here is only a fraction of all the
+possibilities offered by quantitative and qualitative methodologies.
