@@ -1,6 +1,6 @@
 ---
 title: 'From College Dropout to Ye: Kanye West''s lyrical evolution.'
-author: " Irene García-Espantaleón Artal, Jorge Ramos Val y Pablo Romero Medinilla"
+author: " Irene García-Espantaleón Artal, Jorge Ramos Val and Pablo Romero Medinilla"
 date: "2025-04-25"
 output:
   html_document: default
@@ -1500,6 +1500,10 @@ allowing a deeper understanding of how Kanye’s lyrics resonate
 emotionally and culturally with diverse audiences over time.
 
 In conclusion, this project demonstrates how text mining can illuminate
-critical dimensions of artistic expression, although, as we have tried
-to make clear, what has been done here is only a fraction of all the
-possibilities offered by quantitative and qualitative methodologies.
+critical dimensions of artistic expression. The techniques employed 
+provided us with greater knowledge and better understanding of Kanye
+West's work and career. Nevertheless, as we have tried to make clear,
+what has been done here is only a fraction of all the possibilities
+offered by quantitative and qualitative methodologies,  and does not 
+pretend to give a complete picture, but rather an exploration, of the
+artist's personal and musical evolution.
